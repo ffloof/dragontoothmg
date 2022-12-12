@@ -11,6 +11,7 @@ Dragontooth Movegen is a fast, no-compromises chess move generator written entir
 `Dragontoothmg` is based on *magic bitboards* for maximum performance, and generates legal moves only using *pinned piece tables*.
 
 **This project is currently stable and fully functional.** Optimizations are underway, to improve on the benchmarks listed below.
+Use the official repo not this one.
 
 Repo summary
 ============
