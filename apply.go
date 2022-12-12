@@ -3,7 +3,7 @@ package dragontoothmg
 // Applies a move to the board, and returns a function that can be used to unapply it.
 // This function assumes that the given move is valid (i.e., is in the set of moves found by GenerateLegalMoves()).
 // If the move is not valid, this function has undefined behavior.
-func (b *Board) Apply(m Move) func() {
+func (b *Board) Apply(m Move) {
 	// Configure data about which pieces move
 	var ourBitboardPtr, oppBitboardPtr *Bitboards
 	var epDelta int8                                // add this to the e.p. square to find the captured pawn
@@ -163,79 +163,6 @@ func (b *Board) Apply(m Move) func() {
 	// remove the old en passant square from the hash, and add the new one
 	b.hash ^= uint64(oldEpCaptureSquare)
 	b.hash ^= uint64(b.enpassant)
-
-	// Return the unapply function (closure)
-	return func() {
-		// Flip the player to move
-		b.hash ^= whiteToMoveZobristC
-		b.Wtomove = !b.Wtomove
-
-		// Restore the halfmove clock
-		if resetHalfmoveClockFrom == -1 {
-			b.Halfmoveclock--
-		} else {
-			b.Halfmoveclock = uint8(resetHalfmoveClockFrom)
-		}
-
-		// Unapply move
-		ourBitboardPtr.All &= ^toBitboard                                                             // remove at "to"
-		ourBitboardPtr.All |= fromBitboard                                                            // add at "from"
-		*destTypeBitboard &= ^toBitboard                                                              // remove at "to"
-		*pieceTypeBitboard |= fromBitboard                                                            // add at "from"
-		b.hash ^= pieceSquareZobristC[(int(promotedToPieceType)-1)+ourPiecesPawnZobristIndex][m.To()] // remove the piece at "to"
-		b.hash ^= pieceSquareZobristC[(int(pieceType)-1)+ourPiecesPawnZobristIndex][m.From()]         // add the piece at "from"
-
-		// Restore captured piece (excluding e.p.)
-		if capturedPieceType != Nothing { // doesn't consider e.p. captures
-			*capturedBitboard |= toBitboard
-			oppBitboardPtr.All |= toBitboard
-			// restore the captured piece to the hash (excluding e.p.)
-			b.hash ^= pieceSquareZobristC[oppPiecesPawnZobristIndex+(int(capturedPieceType)-1)][m.To()]
-		}
-
-		// Restore rooks from castling move
-		if castleStatus != 0 {
-			ourBitboardPtr.Rooks &= ^(uint64(1) << newRookLoc)
-			ourBitboardPtr.All &= ^(uint64(1) << newRookLoc)
-			ourBitboardPtr.Rooks |= (uint64(1) << oldRookLoc)
-			ourBitboardPtr.All |= (uint64(1) << oldRookLoc)
-			// Revert castling rook move
-			b.hash ^= pieceSquareZobristC[ourPiecesPawnZobristIndex+(Rook-1)][oldRookLoc]
-			b.hash ^= pieceSquareZobristC[ourPiecesPawnZobristIndex+(Rook-1)][newRookLoc]
-		}
-
-		// Unapply en-passant square change, and capture if necessary
-		b.hash ^= uint64(b.enpassant)        // undo the new en passant square from the hash
-		b.hash ^= uint64(oldEpCaptureSquare) // restore the old one to the hash
-		b.enpassant = oldEpCaptureSquare
-		if actuallyPerformedEpCapture {
-			epOpponentPawnLocation := uint8(int8(oldEpCaptureSquare) + epDelta)
-			oppBitboardPtr.Pawns |= (uint64(1) << epOpponentPawnLocation)
-			oppBitboardPtr.All |= (uint64(1) << epOpponentPawnLocation)
-			// Add the opponent pawn to the board hash.
-			b.hash ^= pieceSquareZobristC[oppPiecesPawnZobristIndex][epOpponentPawnLocation]
-		}
-
-		// Decrement move clock
-		if !b.Wtomove {
-			b.Fullmoveno-- // decrement after undoing black's move
-		}
-
-		// Restore castling flags
-		// Must update castling flags AFTER turn swap
-		if flippedKsCastle {
-			b.flipKingsideCastle()
-		}
-		if flippedQsCastle {
-			b.flipQueensideCastle()
-		}
-		if flippedOppKsCastle {
-			b.flipOppKingsideCastle()
-		}
-		if flippedOppQsCastle {
-			b.flipOppQueensideCastle()
-		}
-	}
 }
 
 func determinePieceType(ourBitboardPtr *Bitboards, squareMask uint64) (Piece, *uint64) {
