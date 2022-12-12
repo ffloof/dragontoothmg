@@ -37,7 +37,6 @@ func (b *Board) Apply(m Move) {
 
 	// If it is any kind of capture or pawn move, reset halfmove clock.
 	if IsCapture(m, b) || pieceType == Pawn { 
-		resetHalfmoveClockFrom = int(b.Halfmoveclock)
 		b.Halfmoveclock = 0 // reset halfmove clock
 	} else {
 		b.Halfmoveclock++
@@ -58,11 +57,9 @@ func (b *Board) Apply(m Move) {
 		// King moves always strip castling rights
 		if b.canCastleKingside() {
 			b.flipKingsideCastle()
-			flippedKsCastle = true
 		}
 		if b.canCastleQueenside() {
 			b.flipQueensideCastle()
-			flippedQsCastle = true
 		}
 	}
 
@@ -70,11 +67,9 @@ func (b *Board) Apply(m Move) {
 	if pieceType == Rook {
 		if b.canCastleKingside() && (fromBitboard&onlyFile[7] != 0) &&
 			fromBitboard&ourStartingRankBb != 0 { // king's rook
-			flippedKsCastle = true
 			b.flipKingsideCastle()
 		} else if b.canCastleQueenside() && (fromBitboard&onlyFile[0] != 0) &&
 			fromBitboard&ourStartingRankBb != 0 { // queen's rook
-			flippedQsCastle = true
 			b.flipQueensideCastle()
 		}
 	}
@@ -94,7 +89,6 @@ func (b *Board) Apply(m Move) {
 	// Is this an e.p. capture? Strip the opponent pawn and reset the e.p. square
 	oldEpCaptureSquare := b.enpassant
 	if pieceType == Pawn && m.To() == oldEpCaptureSquare && oldEpCaptureSquare != 0 {
-		actuallyPerformedEpCapture = true
 		epOpponentPawnLocation := uint8(int8(oldEpCaptureSquare) + epDelta)
 		oppBitboardPtr.Pawns &= ^(uint64(1) << epOpponentPawnLocation)
 		oppBitboardPtr.All &= ^(uint64(1) << epOpponentPawnLocation)
@@ -147,10 +141,8 @@ func (b *Board) Apply(m Move) {
 	if capturedPieceType == Rook {
 		if m.To()%8 == 7 && toBitboard&oppStartingRankBb != 0 && b.oppCanCastleKingside() { // captured king rook
 			b.flipOppKingsideCastle()
-			flippedOppKsCastle = true
 		} else if m.To()%8 == 0 && toBitboard&oppStartingRankBb != 0 && b.oppCanCastleQueenside() { // queen rooks
 			b.flipOppQueensideCastle()
-			flippedOppQsCastle = true
 		}
 	}
 	// flip the side to move in the hash
