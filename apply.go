@@ -34,10 +34,8 @@ func (b *Board) Apply(m Move) {
 	pieceType, pieceTypeBitboard := determinePieceType(ourBitboardPtr, fromBitboard)
 	castleStatus := 0
 	var oldRookLoc, newRookLoc uint8
-	var flippedKsCastle, flippedQsCastle, flippedOppKsCastle, flippedOppQsCastle bool
 
 	// If it is any kind of capture or pawn move, reset halfmove clock.
-	resetHalfmoveClockFrom := -1
 	if IsCapture(m, b) || pieceType == Pawn { 
 		resetHalfmoveClockFrom = int(b.Halfmoveclock)
 		b.Halfmoveclock = 0 // reset halfmove clock
@@ -95,7 +93,6 @@ func (b *Board) Apply(m Move) {
 
 	// Is this an e.p. capture? Strip the opponent pawn and reset the e.p. square
 	oldEpCaptureSquare := b.enpassant
-	var actuallyPerformedEpCapture bool = false
 	if pieceType == Pawn && m.To() == oldEpCaptureSquare && oldEpCaptureSquare != 0 {
 		actuallyPerformedEpCapture = true
 		epOpponentPawnLocation := uint8(int8(oldEpCaptureSquare) + epDelta)
