@@ -165,7 +165,7 @@ func (b *Board) Apply(m Move) func() {
 	b.hash ^= uint64(b.enpassant)
 
 	// Return the unapply function (closure)
-	unapply := func() {
+	return func() {
 		// Flip the player to move
 		b.hash ^= whiteToMoveZobristC
 		b.Wtomove = !b.Wtomove
@@ -236,7 +236,6 @@ func (b *Board) Apply(m Move) func() {
 			b.flipOppQueensideCastle()
 		}
 	}
-	return unapply
 }
 
 func determinePieceType(ourBitboardPtr *Bitboards, squareMask uint64) (Piece, *uint64) {
