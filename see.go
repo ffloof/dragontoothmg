@@ -161,15 +161,18 @@ func (b *Board) queenControls(moveList *[]Move, nonpinned uint64) {
 
 // King moves (non castle)
 // Computes king moves without castling.
-func (b *Board) kingControls(moveList *[]Move, ptrToOurBitboards *Bitboards) {
-	ourKingLocation := uint8(bits.TrailingZeros64(ptrToOurBitboards.Kings))
+func (b *Board) kingControls(moveList *[]Move) {
+	if b.Wtomove {
+		ourKing = b.White.Kings
+	} else {
+		ourKing = b.Black.Kings
+	}
+
+	ourKingLocation := uint8(bits.TrailingZeros64(ourKing))
 
 	// TODO(dylhunn): Modifying the board is NOT thread-safe.
 	// We only do this to avoid the king danger problem, aka moving away from a
 	// checking slider.
-	oldKings := ptrToOurBitboards.Kings
-	ptrToOurBitboards.Kings = 0
-	ptrToOurBitboards.All &= ^(uint64(1) << ourKingLocation)
 	targets := kingMasks[ourKingLocation]
 	for targets != 0 {
 		target := bits.TrailingZeros64(targets)
@@ -178,7 +181,4 @@ func (b *Board) kingControls(moveList *[]Move, ptrToOurBitboards *Bitboards) {
 		move.Setfrom(Square(ourKingLocation)).Setto(Square(target))
 		*moveList = append(*moveList, move)
 	}
-
-	ptrToOurBitboards.Kings = oldKings
-	ptrToOurBitboards.All |= (1 << ourKingLocation)
 }
