@@ -13,7 +13,7 @@ import (
 func (b *Board) GenerateControlMoves() []Move {
 	moves := make([]Move, 0, kDefaultMoveListLength)
 
-	pinnedPieces := b.generatePinnedMoves(&moves)
+	pinnedPieces := b.generatePinnedMoves(&moves, everything)
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
@@ -162,6 +162,7 @@ func (b *Board) queenControls(moveList *[]Move, nonpinned uint64) {
 // King moves (non castle)
 // Computes king moves without castling.
 func (b *Board) kingControls(moveList *[]Move) {
+	var ourKing uint64
 	if b.Wtomove {
 		ourKing = b.White.Kings
 	} else {
