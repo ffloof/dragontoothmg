@@ -1,7 +1,7 @@
 package dragontoothmg
 
 import (
-	"bits"
+	"math/bits"
 )
 
 // This new addition aims to add functionality useful to adding a static exchange evaluation
