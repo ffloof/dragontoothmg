@@ -211,10 +211,10 @@ func (b *Board) pawnPushes(moveList *[]Move, nonpinned uint64, allowDest uint64)
 		var move Move
 		move.Setfrom(Square(target + oneRankBack)).Setto(Square(target))
 		if canPromote {
-			for i := Piece(Knight); i <= Queen; i++ {
-				move.Setpromote(i)
-				*moveList = append(*moveList, move)
-			}
+			// Only checking queen promotions can lead to a minor speedup though it breaks tests
+			// It also saves some memory and branching factor in mcts which is handy
+			move.Setpromote(Queen)
+			*moveList = append(*moveList, move)
 		} else {
 			*moveList = append(*moveList, move)
 		}
