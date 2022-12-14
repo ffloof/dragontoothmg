@@ -1,5 +1,9 @@
 package dragontoothmg
 
+import (
+	"bits"
+)
+
 // This new addition aims to add functionality useful to adding a static exchange evaluation
 // The main challenge is to handle cases where two pieces are aligned along a diagonal or file,
 // Thus they can take sequentially and thus dont interpose
@@ -8,63 +12,25 @@ package dragontoothmg
 
 func (b *Board) GenerateControlMoves() []Move {
 	moves := make([]Move, 0, kDefaultMoveListLength)
-	// First, see if we are currently in check. If we are, invoke a special check-
-	// evasion move generator.
-	var kingLocation uint8
-	var ourPiecesPtr *Bitboards
-	if b.Wtomove { // assumes only one king
-		kingLocation = uint8(bits.TrailingZeros64(b.White.Kings))
-		ourPiecesPtr = &(b.White)
-	} else {
-		kingLocation = uint8(bits.TrailingZeros64(b.Black.Kings))
-		ourPiecesPtr = &(b.Black)
-	}
 
-	/* TODO: figure out how to exactly handle check positions
-	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
-	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
-		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
-	}
-
-	// Several move types can work in single check, but we must block the check
-	if kingAttackers == 1 {
-		// calculate pinned pieces
-		pinnedPieces := b.generatePinnedMoves(&moves, blockerDestinations)
-		nonpinnedPieces := ^pinnedPieces
-		// TODO
-		b.pawnPushes(&moves, nonpinnedPieces, blockerDestinations)
-		b.pawnCaptures(&moves, nonpinnedPieces, blockerDestinations)
-		b.knightMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.rookMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.bishopMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.queenMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
-	}*/
-
-	// Then, calculate all the absolutely pinned pieces, and compute their moves.
-	// If we are in check, we can only move to squares that block the check.
-
-	//TODO: remove everything allDest parameter since its always everything
-	pinnedPieces := b.generatePinnedMoves(&moves, everything)
+	pinnedPieces := b.generatePinnedMoves(&moves)
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
-	b.pawnControls(&moves, nonpinnedPieces, everything)
-	b.knightControls(&moves, nonpinnedPieces, everything)
-	b.rookControls(&moves, nonpinnedPieces, everything)
-	b.bishopControls(&moves, nonpinnedPieces, everything)
-	b.queenControls(&moves, nonpinnedPieces, everything)
+	b.pawnControls(&moves, nonpinnedPieces)
+	b.knightControls(&moves, nonpinnedPieces)
+	b.rookControls(&moves, nonpinnedPieces)
+	b.bishopControls(&moves, nonpinnedPieces)
+	b.queenControls(&moves, nonpinnedPieces)
 	b.kingControls(&moves)
 	return moves
 }
 
 // Pawn captures (non enpassant) - all squares
-func (b *Board) pawnCaptures(moveList *[]Move, nonpinned uint64, allowDest uint64) {
+func (b *Board) pawnControls(moveList *[]Move, nonpinned uint64) {
 	east, west := b.pawnControlsBitboards(nonpinned)
 
-	east, west = east&allowDest, west&allowDest
+	east, west = east, west
 	dirbitboards := [2]uint64{east, west}
 	if !b.Wtomove {
 		dirbitboards[0], dirbitboards[1] = dirbitboards[1], dirbitboards[0]
@@ -115,7 +81,7 @@ func (b *Board) pawnControlsBitboards(nonpinned uint64) (east uint64, west uint6
 
 
 // Knight moves - all squares
-func (b *Board) knightControls(moveList *[]Move, nonpinned uint64, allowDest uint64) {
+func (b *Board) knightControls(moveList *[]Move, nonpinned uint64) {
 	var ourKnights uint64
 	if b.Wtomove {
 		ourKnights = b.White.Knights & nonpinned
@@ -125,13 +91,13 @@ func (b *Board) knightControls(moveList *[]Move, nonpinned uint64, allowDest uin
 	for ourKnights != 0 {
 		currentKnight := bits.TrailingZeros64(ourKnights)
 		ourKnights &= ourKnights - 1
-		targets := knightMasks[currentKnight] & allowDest
+		targets := knightMasks[currentKnight]
 		genMovesFromTargets(moveList, Square(currentKnight), targets)
 	}
 }
 
 // Bishop moves - all squares, past queens, past bishops
-func (b *Board) bishopControls(moveList *[]Move, nonpinned uint64, allowDest uint64) {
+func (b *Board) bishopControls(moveList *[]Move, nonpinned uint64) {
 	var ourBishops, transparentPieces uint64
 	if b.Wtomove {
 		ourBishops = b.White.Bishops & nonpinned
@@ -144,13 +110,13 @@ func (b *Board) bishopControls(moveList *[]Move, nonpinned uint64, allowDest uin
 	for ourBishops != 0 {
 		currBishop := uint8(bits.TrailingZeros64(ourBishops))
 		ourBishops &= ourBishops - 1
-		targets := CalculateBishopMoveBitboard(currBishop, allPieces ^ transparentPieces) & allowDest
+		targets := CalculateBishopMoveBitboard(currBishop, allPieces ^ transparentPieces)
 		genMovesFromTargets(moveList, Square(currBishop), targets)
 	}
 }
 
 // Rook moves - all squares, past rooks, past queens
-func (b *Board) rookControls(moveList *[]Move, nonpinned uint64, allowDest uint64) {
+func (b *Board) rookControls(moveList *[]Move, nonpinned uint64) {
 	var ourRooks, transparentPieces uint64
 	if b.Wtomove {
 		ourRooks = b.White.Rooks & nonpinned
@@ -163,13 +129,13 @@ func (b *Board) rookControls(moveList *[]Move, nonpinned uint64, allowDest uint6
 	for ourRooks != 0 {
 		currRook := uint8(bits.TrailingZeros64(ourRooks))
 		ourRooks &= ourRooks - 1
-		targets := CalculateRookMoveBitboard(currRook, allPieces ^ transparentPieces) & allowDest
+		targets := CalculateRookMoveBitboard(currRook, allPieces ^ transparentPieces)
 		genMovesFromTargets(moveList, Square(currRook), targets)
 	}
 }
 
 // Queen moves - all squares, past rooks, past bishops, past queens
-func (b *Board) queenControls(moveList *[]Move, nonpinned uint64, allowDest uint64) {
+func (b *Board) queenControls(moveList *[]Move, nonpinned uint64) {
 	var ourQueens, transparentDiag, transparentHorz uint64
 	if b.Wtomove {
 		ourQueens = b.White.Queens & nonpinned
@@ -185,10 +151,10 @@ func (b *Board) queenControls(moveList *[]Move, nonpinned uint64, allowDest uint
 		currQueen := uint8(bits.TrailingZeros64(ourQueens))
 		ourQueens &= ourQueens - 1
 		// bishop motion
-		diag_targets := CalculateBishopMoveBitboard(currQueen, allPieces ^ transparentDiag) & allowDest
+		diag_targets := CalculateBishopMoveBitboard(currQueen, allPieces ^ transparentDiag)
 		genMovesFromTargets(moveList, Square(currQueen), diag_targets)
 		// rook motion
-		ortho_targets := CalculateRookMoveBitboard(currQueen, allPieces ^ transparentHorz) & allowDest
+		ortho_targets := CalculateRookMoveBitboard(currQueen, allPieces ^ transparentHorz)
 		genMovesFromTargets(moveList, Square(currQueen), ortho_targets)
 	}
 }
