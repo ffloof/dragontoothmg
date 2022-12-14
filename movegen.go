@@ -302,10 +302,8 @@ func (b *Board) pawnCaptures(moveList *[]Move, nonpinned uint64, allowDest uint6
 				}
 			}
 			if canPromote {
-				for i := Piece(Knight); i <= Queen; i++ {
-					move.Setpromote(i)
-					*moveList = append(*moveList, move)
-				}
+				move.Setpromote(Queen)
+				*moveList = append(*moveList, move)
 				continue
 			}
 			*moveList = append(*moveList, move)
