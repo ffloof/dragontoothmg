@@ -13,7 +13,7 @@ import (
 func (b *Board) GenerateControlMoves() []Move {
 	moves := make([]Move, 0, kDefaultMoveListLength)
 
-	pinnedPieces := b.generatePinnedMoves(&moves, everything)
+	pinnedPieces := b.generatePinnedThreats(&moves)
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
@@ -181,4 +181,115 @@ func (b *Board) kingControls(moveList *[]Move) {
 		move.Setfrom(Square(ourKingLocation)).Setto(Square(target))
 		*moveList = append(*moveList, move)
 	}
+}
+
+func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
+	var ourKingIdx uint8
+	var ourPieces, oppPieces *Bitboards
+	var allPinnedPieces uint64 = 0
+	var pawnPushDirection int
+	var doublePushRank, ourPromotionRank uint64
+	if b.Wtomove { // Assumes only one king on the board
+		ourKingIdx = uint8(bits.TrailingZeros64(b.White.Kings))
+		ourPieces = &(b.White)
+		oppPieces = &(b.Black)
+		pawnPushDirection = 1
+		doublePushRank = onlyRank[3]
+		ourPromotionRank = onlyRank[7]
+	} else {
+		ourKingIdx = uint8(bits.TrailingZeros64(b.Black.Kings))
+		ourPieces = &(b.Black)
+		oppPieces = &(b.White)
+		pawnPushDirection = -1
+		doublePushRank = onlyRank[4]
+		ourPromotionRank = onlyRank[0]
+	}
+	allPieces := oppPieces.All | ourPieces.All
+
+	// Calculate king moves as if it was a rook.
+	// "king targets" includes our own friendly pieces, for the purpose of identifying pins.
+	kingOrthoTargets := CalculateRookMoveBitboard(ourKingIdx, allPieces)
+	oppRooks := oppPieces.Rooks | oppPieces.Queens
+	for oppRooks != 0 { // For each opponent ortho slider
+		currRookIdx := uint8(bits.TrailingZeros64(oppRooks))
+		oppRooks &= oppRooks - 1
+		rookTargets := CalculateRookMoveBitboard(currRookIdx, allPieces) & (^(oppPieces.All))
+		// A piece is pinned iff it falls along both attack rays.
+		pinnedPiece := rookTargets & kingOrthoTargets & ourPieces.All
+		if pinnedPiece == 0 { // there is no pin
+			continue
+		}
+		pinnedPieceIdx := uint8(bits.TrailingZeros64(pinnedPiece))
+		sameRank := pinnedPieceIdx/8 == ourKingIdx/8 && pinnedPieceIdx/8 == currRookIdx/8
+		sameFile := pinnedPieceIdx%8 == ourKingIdx%8 && pinnedPieceIdx%8 == currRookIdx%8
+		if !sameRank && !sameFile {
+			continue // it's just an intersection, not a pin
+		}
+		allPinnedPieces |= pinnedPiece        // store the pinned piece location
+		
+		// If it's not a rook or queen, it can't move
+		if pinnedPiece&ourPieces.Rooks == 0 && pinnedPiece&ourPieces.Queens == 0 {
+			continue
+		}
+		// all ortho moves, as if it was not pinned
+		pinnedPieceAllMoves := CalculateRookMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
+		// actually available moves
+		pinnedTargets := pinnedPieceAllMoves & (rookTargets | kingOrthoTargets | (uint64(1) << currRookIdx))
+		pinnedTargets
+		genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
+	}
+
+	// Calculate king moves as if it was a bishop.
+	// "king targets" includes our own friendly pieces, for the purpose of identifying pins.
+	kingDiagTargets := CalculateBishopMoveBitboard(ourKingIdx, allPieces)
+	oppBishops := oppPieces.Bishops | oppPieces.Queens
+	for oppBishops != 0 {
+		currBishopIdx := uint8(bits.TrailingZeros64(oppBishops))
+		oppBishops &= oppBishops - 1
+		bishopTargets := CalculateBishopMoveBitboard(currBishopIdx, allPieces) & (^(oppPieces.All))
+		pinnedPiece := bishopTargets & kingDiagTargets & ourPieces.All
+		if pinnedPiece == 0 { // there is no pin
+			continue
+		}
+		pinnedPieceIdx := uint8(bits.TrailingZeros64(pinnedPiece))
+		bishopToPinnedSlope := (float32(pinnedPieceIdx)/8 - float32(currBishopIdx)/8) /
+			(float32(pinnedPieceIdx%8) - float32(currBishopIdx%8))
+		bishopToKingSlope := (float32(ourKingIdx)/8 - float32(currBishopIdx)/8) /
+			(float32(ourKingIdx%8) - float32(currBishopIdx%8))
+		if bishopToPinnedSlope != bishopToKingSlope { // just an intersection, not a pin
+			continue
+		}
+		allPinnedPieces |= pinnedPiece // store pinned piece
+		// if it's a pawn we might be able to capture with it
+		if pinnedPiece&ourPieces.Pawns != 0 {
+			if (uint64(1)<<currBishopIdx) != 0 {
+				if (b.Wtomove && (pinnedPieceIdx/8)+1 == currBishopIdx/8) ||
+					(!b.Wtomove && pinnedPieceIdx/8 == (currBishopIdx/8)+1) {
+					if ((uint64(1) << currBishopIdx) & ourPromotionRank) != 0 { // We get to promote!
+						for i := Piece(Knight); i <= Queen; i++ {
+							var move Move
+							move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx)).Setpromote(i)
+							*moveList = append(*moveList, move)
+						}
+					} else { // no promotion
+						var move Move
+						move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx))
+						*moveList = append(*moveList, move)
+					}
+				}
+			}
+			continue
+		}
+		// If it's not a bishop or queen, it can't move
+		if pinnedPiece&ourPieces.Bishops == 0 && pinnedPiece&ourPieces.Queens == 0 {
+			continue
+		}
+		// all diag moves, as if it was not pinned
+		pinnedPieceAllMoves := CalculateBishopMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
+		// actually available moves
+		pinnedTargets := pinnedPieceAllMoves & (bishopTargets | kingDiagTargets | (uint64(1) << currBishopIdx))
+		pinnedTargets
+		genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
+	}
+	return allPinnedPieces
 }
