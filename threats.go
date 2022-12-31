@@ -192,15 +192,11 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 		ourKingIdx = uint8(bits.TrailingZeros64(b.White.Kings))
 		ourPieces = &(b.White)
 		oppPieces = &(b.Black)
-		pawnPushDirection = 1
-		doublePushRank = onlyRank[3]
 		ourPromotionRank = onlyRank[7]
 	} else {
 		ourKingIdx = uint8(bits.TrailingZeros64(b.Black.Kings))
 		ourPieces = &(b.Black)
 		oppPieces = &(b.White)
-		pawnPushDirection = -1
-		doublePushRank = onlyRank[4]
 		ourPromotionRank = onlyRank[0]
 	}
 	allPieces := oppPieces.All | ourPieces.All
