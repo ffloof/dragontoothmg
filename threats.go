@@ -187,8 +187,7 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 	var ourKingIdx uint8
 	var ourPieces, oppPieces *Bitboards
 	var allPinnedPieces uint64 = 0
-	var pawnPushDirection int
-	var doublePushRank, ourPromotionRank uint64
+	var ourPromotionRank uint64
 	if b.Wtomove { // Assumes only one king on the board
 		ourKingIdx = uint8(bits.TrailingZeros64(b.White.Kings))
 		ourPieces = &(b.White)
@@ -235,8 +234,7 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 		pinnedPieceAllMoves := CalculateRookMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (rookTargets | kingOrthoTargets | (uint64(1) << currRookIdx))
-		pinnedTargets
-		genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
+			genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
 	}
 
 	// Calculate king moves as if it was a bishop.
@@ -288,7 +286,6 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 		pinnedPieceAllMoves := CalculateBishopMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (bishopTargets | kingDiagTargets | (uint64(1) << currBishopIdx))
-		pinnedTargets
 		genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
 	}
 	return allPinnedPieces
