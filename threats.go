@@ -64,16 +64,15 @@ func (b *Board) pawnControls(moveList *[]Move, nonpinned uint64) {
 func (b *Board) pawnControlsBitboards(nonpinned uint64) (east uint64, west uint64) {
 	notHFile := uint64(0x7F7F7F7F7F7F7F7F)
 	notAFile := uint64(0xFEFEFEFEFEFEFEFE)
-	var targets uint64 = b.Black.All | b.White.All
 
 	if b.Wtomove {
 		ourpawns := b.White.Pawns & nonpinned
-		east = ourpawns << 9 & notAFile & targets
-		west = ourpawns << 7 & notHFile & targets
+		east = ourpawns << 9 & notAFile
+		west = ourpawns << 7 & notHFile
 	} else {
 		ourpawns := b.Black.Pawns & nonpinned
-		east = ourpawns >> 7 & notAFile & targets
-		west = ourpawns >> 9 & notHFile & targets
+		east = ourpawns >> 7 & notAFile
+		west = ourpawns >> 9 & notHFile
 	}
 	return
 }
