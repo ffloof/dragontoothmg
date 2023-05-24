@@ -17,7 +17,7 @@ func (b *Board) GenerateControlMoves() []Move {
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
-	b.pawnControls(&moves, nonpinnedPieces)
+	b.PawnControls(&moves, nonpinnedPieces)
 	b.knightControls(&moves, nonpinnedPieces)
 	b.rookControls(&moves, nonpinnedPieces)
 	b.bishopControls(&moves, nonpinnedPieces)
@@ -27,7 +27,7 @@ func (b *Board) GenerateControlMoves() []Move {
 }
 
 // Pawn captures (non enpassant) - all squares
-func (b *Board) pawnControls(moveList *[]Move, nonpinned uint64) {
+func (b *Board) PawnControls(moveList *[]Move, nonpinned uint64) {
 	east, west := b.pawnControlsBitboards(nonpinned)
 
 	east, west = east, west
