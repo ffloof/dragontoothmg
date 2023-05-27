@@ -64,8 +64,8 @@ func (b *Board) GenerateLegalMoves() []Move {
 }
 
 
-// Custom version of the function that returns more information (pinned pieces)
-func (b *Board) GenerateLegalMoves2() ([]Move, uint64) {
+// Custom version of the function that returns more information (pinned pieces and checks)
+func (b *Board) GenerateLegalMoves2() ([]Move, uint64, bool) {
 	moves := make([]Move, 0, kDefaultMoveListLength)
 	// First, see if we are currently in check. If we are, invoke a special check-
 	// evasion move generator.
@@ -81,7 +81,7 @@ func (b *Board) GenerateLegalMoves2() ([]Move, uint64) {
 	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
 	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
 		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
+		return moves, ^pinnedPieces, true
 	}
 
 	// Several move types can work in single check, but we must block the check
@@ -97,7 +97,7 @@ func (b *Board) GenerateLegalMoves2() ([]Move, uint64) {
 		b.bishopMoves(&moves, nonpinnedPieces, blockerDestinations)
 		b.queenMoves(&moves, nonpinnedPieces, blockerDestinations)
 		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
+		return moves, nonpinnedPieces, true
 	}
 
 	// Then, calculate all the absolutely pinned pieces, and compute their moves.
@@ -113,7 +113,7 @@ func (b *Board) GenerateLegalMoves2() ([]Move, uint64) {
 	b.bishopMoves(&moves, nonpinnedPieces, everything)
 	b.queenMoves(&moves, nonpinnedPieces, everything)
 	b.kingMoves(&moves)
-	return moves, nonpinnedPieces
+	return moves, nonpinnedPieces, false
 }
 
 // Calculate the available moves for absolutely pinned pieces (pinned to the king).
