@@ -12,7 +12,7 @@ import (
 
 
 func (b *Board) GenerateControlArea() uint64 {
-	pinnedPieces, area := b.generatePinnedThreats(&moves)
+	pinnedPieces, area := b.generatePinnedThreats()
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
@@ -37,9 +37,10 @@ func (b *Board) pawnControls(nonpinned uint64) uint64 {
 	if !b.Wtomove {
 		dirbitboards[0], dirbitboards[1] = dirbitboards[1], dirbitboards[0]
 	}
-	for dir, board := range dirbitboards { // for east and west
+	for _, board := range dirbitboards { // for east and west
 		area &= board
 	}
+	return area
 }
 
 // Knight moves - all squares
@@ -119,7 +120,7 @@ func (b *Board) queenControls(nonpinned uint64) uint64 {
 
 // King moves (non castle)
 // Computes king moves without castling.
-func (b *Board) kingControls() {
+func (b *Board) kingControls() uint64 {
 	var area, ourKing uint64
 	if b.Wtomove {
 		ourKing = b.White.Kings

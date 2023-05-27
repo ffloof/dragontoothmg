@@ -12,7 +12,58 @@ import (
 )
 
 // The main API entrypoint. Generates all legal moves for a given board.
-func (b *Board) GenerateLegalMoves() ([]Move, bool) {
+func (b *Board) GenerateLegalMoves() []Move {
+	moves := make([]Move, 0, kDefaultMoveListLength)
+	// First, see if we are currently in check. If we are, invoke a special check-
+	// evasion move generator.
+	var kingLocation uint8
+	var ourPiecesPtr *Bitboards
+	if b.Wtomove { // assumes only one king
+		kingLocation = uint8(bits.TrailingZeros64(b.White.Kings))
+		ourPiecesPtr = &(b.White)
+	} else {
+		kingLocation = uint8(bits.TrailingZeros64(b.Black.Kings))
+		ourPiecesPtr = &(b.Black)
+	}
+	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
+	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
+		b.kingPushes(&moves, ourPiecesPtr)
+		return moves
+	}
+
+	// Several move types can work in single check, but we must block the check
+	if kingAttackers == 1 {
+		// calculate pinned pieces
+		pinnedPieces := b.generatePinnedMoves(&moves, blockerDestinations)
+		nonpinnedPieces := ^pinnedPieces
+		// TODO
+		b.pawnPushes(&moves, nonpinnedPieces, blockerDestinations)
+		b.pawnCaptures(&moves, nonpinnedPieces, blockerDestinations)
+		b.knightMoves(&moves, nonpinnedPieces, blockerDestinations)
+		b.rookMoves(&moves, nonpinnedPieces, blockerDestinations)
+		b.bishopMoves(&moves, nonpinnedPieces, blockerDestinations)
+		b.queenMoves(&moves, nonpinnedPieces, blockerDestinations)
+		b.kingPushes(&moves, ourPiecesPtr)
+		return moves
+	}
+
+	// Then, calculate all the absolutely pinned pieces, and compute their moves.
+	// If we are in check, we can only move to squares that block the check.
+	pinnedPieces := b.generatePinnedMoves(&moves, everything)
+	nonpinnedPieces := ^pinnedPieces
+
+	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
+	b.pawnPushes(&moves, nonpinnedPieces, everything)
+	b.pawnCaptures(&moves, nonpinnedPieces, everything)
+	b.knightMoves(&moves, nonpinnedPieces, everything)
+	b.rookMoves(&moves, nonpinnedPieces, everything)
+	b.bishopMoves(&moves, nonpinnedPieces, everything)
+	b.queenMoves(&moves, nonpinnedPieces, everything)
+	b.kingMoves(&moves)
+	return moves
+}
+
+func (b *Board) MyGenerateLegalMoves() ([]Move, bool) {
 	moves := make([]Move, 0, kDefaultMoveListLength)
 	// First, see if we are currently in check. If we are, invoke a special check-
 	// evasion move generator.
