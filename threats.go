@@ -140,19 +140,16 @@ func (b *Board) generatePinnedThreats() (uint64,uint64) {
 	var ourKingIdx uint8
 	var ourPieces, oppPieces *Bitboards
 	var allPinnedPieces uint64 = 0
-	var ourPromotionRank uint64
 	var area uint64
 
 	if b.Wtomove { // Assumes only one king on the board
 		ourKingIdx = uint8(bits.TrailingZeros64(b.White.Kings))
 		ourPieces = &(b.White)
 		oppPieces = &(b.Black)
-		ourPromotionRank = onlyRank[7]
 	} else {
 		ourKingIdx = uint8(bits.TrailingZeros64(b.Black.Kings))
 		ourPieces = &(b.Black)
 		oppPieces = &(b.White)
-		ourPromotionRank = onlyRank[0]
 	}
 	allPieces := oppPieces.All | ourPieces.All
 
