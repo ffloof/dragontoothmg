@@ -97,7 +97,7 @@ func (b *Board) rookControls(nonpinned uint64) uint64 {
 
 // Queen moves - all squares, past rooks, past bishops, past queens
 func (b *Board) queenControls(nonpinned uint64) uint64 {
-	var area, ourQueens
+	var area, ourQueens uint64
 	if b.Wtomove {
 		ourQueens = b.White.Queens & nonpinned
 	} else {
