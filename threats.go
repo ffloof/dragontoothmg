@@ -10,24 +10,26 @@ import (
 // The only edge case I haven't managed to cover is where a bishop or queen stares through a pawn,
 // effectively adding an attacker to the pawn's attacking square (just hard to do with bitboards)
 
-func (b *Board) GenerateControlMoves() []Move {
-	moves := make([]Move, 0, kDefaultMoveListLength)
 
-	pinnedPieces := b.generatePinnedThreats(&moves)
+func (b *Board) GenerateControlArea() uint64 {
+	pinnedPieces, area := b.generatePinnedThreats(&moves)
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
-	b.PawnControls(&moves, nonpinnedPieces)
-	b.knightControls(&moves, nonpinnedPieces)
-	b.rookControls(&moves, nonpinnedPieces)
-	b.bishopControls(&moves, nonpinnedPieces)
-	b.queenControls(&moves, nonpinnedPieces)
-	b.kingControls(&moves)
-	return moves
+	pawnArea := b.pawnControls(nonpinnedPieces)
+	area &= pawnArea
+	area &= b.knightControls(nonpinnedPieces)
+	area &= b.rookControls(nonpinnedPieces)
+	area &= b.bishopControls(nonpinnedPieces)
+	area &= b.queenControls(nonpinnedPieces)
+	area &= b.kingControls()
+	// TODO: figure out if returning pawn area is worth anything
+	return area
 }
 
 // Pawn captures (non enpassant) - all squares
-func (b *Board) PawnControls(moveList *[]Move, nonpinned uint64) {
+func (b *Board) pawnControls(nonpinned uint64) uint64 {
+	var area uint64
 	east, west := b.pawnControlsBitboards(nonpinned)
 
 	east, west = east, west
@@ -36,52 +38,13 @@ func (b *Board) PawnControls(moveList *[]Move, nonpinned uint64) {
 		dirbitboards[0], dirbitboards[1] = dirbitboards[1], dirbitboards[0]
 	}
 	for dir, board := range dirbitboards { // for east and west
-		for board != 0 {
-			target := bits.TrailingZeros64(board)
-			board &= board - 1
-			var move Move
-			move.Setto(Square(target))
-			canPromote := false
-			if b.Wtomove {
-				move.Setfrom(Square(target - (9 - (dir * 2))))
-				canPromote = target >= 56
-			} else {
-				move.Setfrom(Square(target + (9 - (dir * 2))))
-				canPromote = target <= 7
-			}
-			
-			if canPromote {
-				move.Setpromote(Queen)
-				*moveList = append(*moveList, move)
-				continue
-			}
-			*moveList = append(*moveList, move)
-		}
+		area &= board
 	}
 }
-
-// A helper than generates bitboards for available pawn captures.
-func (b *Board) pawnControlsBitboards(nonpinned uint64) (east uint64, west uint64) {
-	notHFile := uint64(0x7F7F7F7F7F7F7F7F)
-	notAFile := uint64(0xFEFEFEFEFEFEFEFE)
-
-	if b.Wtomove {
-		ourpawns := b.White.Pawns & nonpinned
-		east = ourpawns << 9 & notAFile
-		west = ourpawns << 7 & notHFile
-	} else {
-		ourpawns := b.Black.Pawns & nonpinned
-		east = ourpawns >> 7 & notAFile
-		west = ourpawns >> 9 & notHFile
-	}
-	return
-}
-
-
 
 // Knight moves - all squares
-func (b *Board) knightControls(moveList *[]Move, nonpinned uint64) {
-	var ourKnights uint64
+func (b *Board) knightControls(nonpinned uint64) uint64 {
+	var area, ourKnights uint64
 	if b.Wtomove {
 		ourKnights = b.White.Knights & nonpinned
 	} else {
@@ -91,77 +54,73 @@ func (b *Board) knightControls(moveList *[]Move, nonpinned uint64) {
 		currentKnight := bits.TrailingZeros64(ourKnights)
 		ourKnights &= ourKnights - 1
 		targets := knightMasks[currentKnight]
-		genMovesFromTargets(moveList, Square(currentKnight), targets)
+		area &= targets
 	}
+	return area
 }
 
 // Bishop moves - all squares, past queens, past bishops
-func (b *Board) bishopControls(moveList *[]Move, nonpinned uint64) {
-	var ourBishops, transparentPieces uint64
+func (b *Board) bishopControls(nonpinned uint64) uint64 {
+	var area, ourBishops uint64
 	if b.Wtomove {
 		ourBishops = b.White.Bishops & nonpinned
-		transparentPieces = b.White.Bishops & b.White.Queens
 	} else {
 		ourBishops = b.Black.Bishops & nonpinned
-		transparentPieces = b.Black.Bishops & b.Black.Queens
 	}
 	allPieces := b.White.All | b.Black.All
 	for ourBishops != 0 {
 		currBishop := uint8(bits.TrailingZeros64(ourBishops))
 		ourBishops &= ourBishops - 1
-		targets := CalculateBishopMoveBitboard(currBishop, allPieces ^ transparentPieces)
-		genMovesFromTargets(moveList, Square(currBishop), targets)
+		targets := CalculateBishopMoveBitboard(currBishop, allPieces)
+		area &= targets
 	}
+	return area
 }
 
 // Rook moves - all squares, past rooks, past queens
-func (b *Board) rookControls(moveList *[]Move, nonpinned uint64) {
-	var ourRooks, transparentPieces uint64
+func (b *Board) rookControls(nonpinned uint64) uint64 {
+	var area, ourRooks uint64
 	if b.Wtomove {
 		ourRooks = b.White.Rooks & nonpinned
-		transparentPieces = b.White.Rooks & b.White.Queens
 	} else {
 		ourRooks = b.Black.Rooks & nonpinned
-		transparentPieces = b.Black.Rooks & b.Black.Queens
 	}
 	allPieces := b.White.All | b.Black.All
 	for ourRooks != 0 {
 		currRook := uint8(bits.TrailingZeros64(ourRooks))
 		ourRooks &= ourRooks - 1
-		targets := CalculateRookMoveBitboard(currRook, allPieces ^ transparentPieces)
-		genMovesFromTargets(moveList, Square(currRook), targets)
+		targets := CalculateRookMoveBitboard(currRook, allPieces)
+		area &= targets
 	}
+	return area
 }
 
 // Queen moves - all squares, past rooks, past bishops, past queens
-func (b *Board) queenControls(moveList *[]Move, nonpinned uint64) {
-	var ourQueens, transparentDiag, transparentHorz uint64
+func (b *Board) queenControls(nonpinned uint64) uint64 {
+	var area, ourQueens
 	if b.Wtomove {
 		ourQueens = b.White.Queens & nonpinned
-		transparentDiag = b.White.Bishops & b.White.Queens
-		transparentHorz = b.White.Rooks & b.White.Queens
 	} else {
 		ourQueens = b.Black.Queens & nonpinned
-		transparentDiag = b.Black.Bishops & b.Black.Queens
-		transparentHorz = b.Black.Rooks & b.Black.Queens
 	}
 	allPieces := b.White.All | b.Black.All
 	for ourQueens != 0 {
 		currQueen := uint8(bits.TrailingZeros64(ourQueens))
 		ourQueens &= ourQueens - 1
 		// bishop motion
-		diag_targets := CalculateBishopMoveBitboard(currQueen, allPieces ^ transparentDiag)
-		genMovesFromTargets(moveList, Square(currQueen), diag_targets)
+		diag_targets := CalculateBishopMoveBitboard(currQueen, allPieces)
+		area &= diag_targets		
 		// rook motion
-		ortho_targets := CalculateRookMoveBitboard(currQueen, allPieces ^ transparentHorz)
-		genMovesFromTargets(moveList, Square(currQueen), ortho_targets)
+		ortho_targets := CalculateRookMoveBitboard(currQueen, allPieces)
+		area &= ortho_targets
 	}
+	return area
 }
 
 // King moves (non castle)
 // Computes king moves without castling.
-func (b *Board) kingControls(moveList *[]Move) {
-	var ourKing uint64
+func (b *Board) kingControls() {
+	var area, ourKing uint64
 	if b.Wtomove {
 		ourKing = b.White.Kings
 	} else {
@@ -170,24 +129,19 @@ func (b *Board) kingControls(moveList *[]Move) {
 
 	ourKingLocation := uint8(bits.TrailingZeros64(ourKing))
 
-	// TODO(dylhunn): Modifying the board is NOT thread-safe.
-	// We only do this to avoid the king danger problem, aka moving away from a
-	// checking slider.
 	targets := kingMasks[ourKingLocation]
-	for targets != 0 {
-		target := bits.TrailingZeros64(targets)
-		targets &= targets - 1
-		var move Move
-		move.Setfrom(Square(ourKingLocation)).Setto(Square(target))
-		*moveList = append(*moveList, move)
-	}
+	area &= targets
+
+	return area
 }
 
-func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
+func (b *Board) generatePinnedThreats() (uint64,uint64) {
 	var ourKingIdx uint8
 	var ourPieces, oppPieces *Bitboards
 	var allPinnedPieces uint64 = 0
 	var ourPromotionRank uint64
+	var area uint64
+
 	if b.Wtomove { // Assumes only one king on the board
 		ourKingIdx = uint8(bits.TrailingZeros64(b.White.Kings))
 		ourPieces = &(b.White)
@@ -230,7 +184,7 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 		pinnedPieceAllMoves := CalculateRookMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (rookTargets | kingOrthoTargets | (uint64(1) << currRookIdx))
-			genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
+		area &= pinnedTargets
 	}
 
 	// Calculate king moves as if it was a bishop.
@@ -259,17 +213,7 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 			if (uint64(1)<<currBishopIdx) != 0 {
 				if (b.Wtomove && (pinnedPieceIdx/8)+1 == currBishopIdx/8) ||
 					(!b.Wtomove && pinnedPieceIdx/8 == (currBishopIdx/8)+1) {
-					if ((uint64(1) << currBishopIdx) & ourPromotionRank) != 0 { // We get to promote!
-						for i := Piece(Knight); i <= Queen; i++ {
-							var move Move
-							move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx)).Setpromote(i)
-							*moveList = append(*moveList, move)
-						}
-					} else { // no promotion
-						var move Move
-						move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx))
-						*moveList = append(*moveList, move)
-					}
+					area &= 1 << currBishopIdx
 				}
 			}
 			continue
@@ -282,7 +226,25 @@ func (b *Board) generatePinnedThreats(moveList *[]Move) uint64 {
 		pinnedPieceAllMoves := CalculateBishopMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (bishopTargets | kingDiagTargets | (uint64(1) << currBishopIdx))
-		genMovesFromTargets(moveList, Square(pinnedPieceIdx), pinnedTargets)
+		area &= pinnedTargets
 	}
-	return allPinnedPieces
+	return allPinnedPieces, area
+}
+
+
+// A helper than generates bitboards for available pawn captures.
+func (b *Board) pawnControlsBitboards(nonpinned uint64) (east uint64, west uint64) {
+	notHFile := uint64(0x7F7F7F7F7F7F7F7F)
+	notAFile := uint64(0xFEFEFEFEFEFEFEFE)
+
+	if b.Wtomove {
+		ourpawns := b.White.Pawns & nonpinned
+		east = ourpawns << 9 & notAFile
+		west = ourpawns << 7 & notHFile
+	} else {
+		ourpawns := b.Black.Pawns & nonpinned
+		east = ourpawns >> 7 & notAFile
+		west = ourpawns >> 9 & notHFile
+	}
+	return
 }

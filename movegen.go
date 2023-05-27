@@ -12,7 +12,7 @@ import (
 )
 
 // The main API entrypoint. Generates all legal moves for a given board.
-func (b *Board) GenerateLegalMoves() []Move {
+func (b *Board) GenerateLegalMoves() ([]Move, bool) {
 	moves := make([]Move, 0, kDefaultMoveListLength)
 	// First, see if we are currently in check. If we are, invoke a special check-
 	// evasion move generator.
@@ -28,7 +28,7 @@ func (b *Board) GenerateLegalMoves() []Move {
 	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
 	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
 		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
+		return moves, true
 	}
 
 	// Several move types can work in single check, but we must block the check
@@ -44,7 +44,7 @@ func (b *Board) GenerateLegalMoves() []Move {
 		b.bishopMoves(&moves, nonpinnedPieces, blockerDestinations)
 		b.queenMoves(&moves, nonpinnedPieces, blockerDestinations)
 		b.kingPushes(&moves, ourPiecesPtr)
-		return moves
+		return moves, true
 	}
 
 	// Then, calculate all the absolutely pinned pieces, and compute their moves.
@@ -60,60 +60,7 @@ func (b *Board) GenerateLegalMoves() []Move {
 	b.bishopMoves(&moves, nonpinnedPieces, everything)
 	b.queenMoves(&moves, nonpinnedPieces, everything)
 	b.kingMoves(&moves)
-	return moves
-}
-
-
-// Custom version of the function that returns more information (pinned pieces and checks)
-func (b *Board) GenerateLegalMoves2() ([]Move, uint64, bool) {
-	moves := make([]Move, 0, kDefaultMoveListLength)
-	// First, see if we are currently in check. If we are, invoke a special check-
-	// evasion move generator.
-	var kingLocation uint8
-	var ourPiecesPtr *Bitboards
-	if b.Wtomove { // assumes only one king
-		kingLocation = uint8(bits.TrailingZeros64(b.White.Kings))
-		ourPiecesPtr = &(b.White)
-	} else {
-		kingLocation = uint8(bits.TrailingZeros64(b.Black.Kings))
-		ourPiecesPtr = &(b.Black)
-	}
-	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
-	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
-		b.kingPushes(&moves, ourPiecesPtr)
-		return moves, 0, true
-	}
-
-	// Several move types can work in single check, but we must block the check
-	if kingAttackers == 1 {
-		// calculate pinned pieces
-		pinnedPieces := b.generatePinnedMoves(&moves, blockerDestinations)
-		nonpinnedPieces := ^pinnedPieces
-		// TODO
-		b.pawnPushes(&moves, nonpinnedPieces, blockerDestinations)
-		b.pawnCaptures(&moves, nonpinnedPieces, blockerDestinations)
-		b.knightMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.rookMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.bishopMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.queenMoves(&moves, nonpinnedPieces, blockerDestinations)
-		b.kingPushes(&moves, ourPiecesPtr)
-		return moves, nonpinnedPieces, true
-	}
-
-	// Then, calculate all the absolutely pinned pieces, and compute their moves.
-	// If we are in check, we can only move to squares that block the check.
-	pinnedPieces := b.generatePinnedMoves(&moves, everything)
-	nonpinnedPieces := ^pinnedPieces
-
-	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
-	b.pawnPushes(&moves, nonpinnedPieces, everything)
-	b.pawnCaptures(&moves, nonpinnedPieces, everything)
-	b.knightMoves(&moves, nonpinnedPieces, everything)
-	b.rookMoves(&moves, nonpinnedPieces, everything)
-	b.bishopMoves(&moves, nonpinnedPieces, everything)
-	b.queenMoves(&moves, nonpinnedPieces, everything)
-	b.kingMoves(&moves)
-	return moves, nonpinnedPieces, false
+	return moves, false
 }
 
 // Calculate the available moves for absolutely pinned pieces (pinned to the king).
@@ -214,11 +161,9 @@ func (b *Board) generatePinnedMoves(moveList *[]Move, allowDest uint64) uint64 {
 				if (b.Wtomove && (pinnedPieceIdx/8)+1 == currBishopIdx/8) ||
 					(!b.Wtomove && pinnedPieceIdx/8 == (currBishopIdx/8)+1) {
 					if ((uint64(1) << currBishopIdx) & ourPromotionRank) != 0 { // We get to promote!
-						for i := Piece(Knight); i <= Queen; i++ {
-							var move Move
-							move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx)).Setpromote(i)
-							*moveList = append(*moveList, move)
-						}
+						var move Move
+						move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx)).Setpromote(Queen)
+						*moveList = append(*moveList, move)
 					} else { // no promotion
 						var move Move
 						move.Setfrom(Square(pinnedPieceIdx)).Setto(Square(currBishopIdx))
