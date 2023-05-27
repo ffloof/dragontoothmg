@@ -81,7 +81,7 @@ func (b *Board) GenerateLegalMoves2() ([]Move, uint64, bool) {
 	kingAttackers, blockerDestinations := b.countAttacks(b.Wtomove, kingLocation, 2)
 	if kingAttackers >= 2 { // Under multiple attack, we must move the king.
 		b.kingPushes(&moves, ourPiecesPtr)
-		return moves, ^pinnedPieces, true
+		return moves, 0, true
 	}
 
 	// Several move types can work in single check, but we must block the check
