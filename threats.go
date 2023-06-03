@@ -19,7 +19,7 @@ func (b *Board) GenerateControlArea() *ThreatBitboards {
 	nonpinnedPieces := ^pinnedPieces
 
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.	
-	return &ThreatsBitboards {
+	return &ThreatBitboards {
 		Pawns: b.pawnControls(nonpinnedPieces),
 		Knights: b.knightControls(nonpinnedPieces),
 		Bishops: b.bishopControls(nonpinnedPieces),
