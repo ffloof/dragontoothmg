@@ -28,7 +28,7 @@ func (b *Board) GenerateControlArea() *ThreatBitboards {
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.	
 	return &ThreatBitboards {
 		Pawns: pawnArea,
-		Knights: knightArea
+		Knights: knightArea,
 		Bishops: bishopArea,
 		Rooks: rookArea,
 		Queens: queenArea,
@@ -48,7 +48,7 @@ func (b *Board) pawnControls(nonpinned uint64) uint64 {
 		dirbitboards[0], dirbitboards[1] = dirbitboards[1], dirbitboards[0]
 	}
 	for _, board := range dirbitboards { // for east and west
-		area &= board
+		area |= board
 	}
 	return area
 }
@@ -65,7 +65,7 @@ func (b *Board) knightControls(nonpinned uint64) uint64 {
 		currentKnight := bits.TrailingZeros64(ourKnights)
 		ourKnights &= ourKnights - 1
 		targets := knightMasks[currentKnight]
-		area &= targets
+		area |= targets
 	}
 	return area
 }
@@ -83,7 +83,7 @@ func (b *Board) bishopControls(nonpinned uint64) uint64 {
 		currBishop := uint8(bits.TrailingZeros64(ourBishops))
 		ourBishops &= ourBishops - 1
 		targets := CalculateBishopMoveBitboard(currBishop, allPieces)
-		area &= targets
+		area |= targets
 	}
 	return area
 }
@@ -101,7 +101,7 @@ func (b *Board) rookControls(nonpinned uint64) uint64 {
 		currRook := uint8(bits.TrailingZeros64(ourRooks))
 		ourRooks &= ourRooks - 1
 		targets := CalculateRookMoveBitboard(currRook, allPieces)
-		area &= targets
+		area |= targets
 	}
 	return area
 }
@@ -120,10 +120,10 @@ func (b *Board) queenControls(nonpinned uint64) uint64 {
 		ourQueens &= ourQueens - 1
 		// bishop motion
 		diag_targets := CalculateBishopMoveBitboard(currQueen, allPieces)
-		area &= diag_targets		
+		area |= diag_targets		
 		// rook motion
 		ortho_targets := CalculateRookMoveBitboard(currQueen, allPieces)
-		area &= ortho_targets
+		area |= ortho_targets
 	}
 	return area
 }
@@ -141,7 +141,7 @@ func (b *Board) kingControls() uint64 {
 	ourKingLocation := uint8(bits.TrailingZeros64(ourKing))
 
 	targets := kingMasks[ourKingLocation]
-	area &= targets
+	area |= targets
 
 	return area
 }
@@ -192,7 +192,7 @@ func (b *Board) generatePinnedThreats() (uint64,uint64) {
 		pinnedPieceAllMoves := CalculateRookMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (rookTargets | kingOrthoTargets | (uint64(1) << currRookIdx))
-		area &= pinnedTargets
+		area |= pinnedTargets
 	}
 
 	// Calculate king moves as if it was a bishop.
@@ -221,7 +221,7 @@ func (b *Board) generatePinnedThreats() (uint64,uint64) {
 			if (uint64(1)<<currBishopIdx) != 0 {
 				if (b.Wtomove && (pinnedPieceIdx/8)+1 == currBishopIdx/8) ||
 					(!b.Wtomove && pinnedPieceIdx/8 == (currBishopIdx/8)+1) {
-					area &= 1 << currBishopIdx
+					area |= 1 << currBishopIdx
 				}
 			}
 			continue
@@ -234,7 +234,7 @@ func (b *Board) generatePinnedThreats() (uint64,uint64) {
 		pinnedPieceAllMoves := CalculateBishopMoveBitboard(pinnedPieceIdx, allPieces) & (^(ourPieces.All))
 		// actually available moves
 		pinnedTargets := pinnedPieceAllMoves & (bishopTargets | kingDiagTargets | (uint64(1) << currBishopIdx))
-		area &= pinnedTargets
+		area |= pinnedTargets
 	}
 	return allPinnedPieces, area
 }
