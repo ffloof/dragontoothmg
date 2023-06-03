@@ -4,27 +4,30 @@ import (
 	"math/bits"
 )
 
-// This new addition aims to add functionality useful to adding a static exchange evaluation
-// The main challenge is to handle cases where two pieces are aligned along a diagonal or file,
-// Thus they can take sequentially and thus dont interpose
-// The only edge case I haven't managed to cover is where a bishop or queen stares through a pawn,
-// effectively adding an attacker to the pawn's attacking square (just hard to do with bitboards)
+type ThreatBitboards struct {
+	Pawns   uint64
+	Knights uint64
+	Bishops uint64
+	Rooks   uint64
+	Queens  uint64
+	Kings   uint64
+	Pinned  uint64
+}
 
-
-func (b *Board) GenerateControlArea() uint64 {
-	pinnedPieces, area := b.generatePinnedThreats()
+func (b *Board) GenerateControlArea() *ThreatBitboards {
+	pinnedPieces, pinnedArea := b.generatePinnedThreats()
 	nonpinnedPieces := ^pinnedPieces
 
-	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.
-	pawnArea := b.pawnControls(nonpinnedPieces)
-	area &= pawnArea
-	area &= b.knightControls(nonpinnedPieces)
-	area &= b.rookControls(nonpinnedPieces)
-	area &= b.bishopControls(nonpinnedPieces)
-	area &= b.queenControls(nonpinnedPieces)
-	area &= b.kingControls()
-	// TODO: figure out if returning pawn area is worth anything
-	return area
+	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.	
+	return &ThreatsBitboards {
+		Pawns: b.pawnControls(nonpinnedPieces),
+		Knights: b.knightControls(nonpinnedPieces),
+		Bishops: b.bishopControls(nonpinnedPieces),
+		Rooks: b.rookControls(nonpinnedPieces),
+		Queens: b.queenControls(nonpinnedPieces),
+		Kings: b.kingControls(),
+		Pinned: pinnedArea,
+	}
 }
 
 // Pawn captures (non enpassant) - all squares
