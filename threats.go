@@ -18,14 +18,21 @@ func (b *Board) GenerateControlArea() *ThreatBitboards {
 	pinnedPieces, pinnedArea := b.generatePinnedThreats()
 	nonpinnedPieces := ^pinnedPieces
 
+	pawnArea := b.pawnControls(nonpinnedPieces),
+	knightArea := b.knightControls(nonpinnedPieces)
+	bishopArea := b.bishopControls(nonpinnedPieces)
+	rookArea := b.rookControls(nonpinnedPieces)
+	queenArea := b.queenControls(nonpinnedPieces)
+	kingArea := b.kingControls()
+
 	// Finally, compute ordinary moves, ignoring absolutely pinned pieces on the board.	
 	return &ThreatBitboards {
-		Pawns: b.pawnControls(nonpinnedPieces),
-		Knights: b.knightControls(nonpinnedPieces),
-		Bishops: b.bishopControls(nonpinnedPieces),
-		Rooks: b.rookControls(nonpinnedPieces),
-		Queens: b.queenControls(nonpinnedPieces),
-		Kings: b.kingControls(),
+		Pawns: pawnArea,
+		Knights: knightArea
+		Bishops: bishopArea,
+		Rooks: rookArea,
+		Queens: queenArea,
+		Kings: kingArea,
 		Pinned: pinnedArea,
 	}
 }
