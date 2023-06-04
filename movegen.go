@@ -693,5 +693,5 @@ func CalculateBishopMoveBitboard(currBishop uint8, allPieces uint64) uint64 {
 }
 
 func CalculateKnightMoveBitboard(currKnight uint8) uint64 {
-	return knightMasks[int(currentKnight)]
+	return knightMasks[int(currKnight)]
 }
