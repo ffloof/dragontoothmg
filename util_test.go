@@ -67,7 +67,7 @@ func TestParseFen(t *testing.T) {
 	if b.Wtomove {
 		t.Error("Error parsing FEN")
 	}
-	if b.enpassant != 20 {
+	if b.Enpassant != 20 {
 		t.Error("Error parsing FEN")
 	}
 	if !b.whiteCanCastleKingside() {

@@ -16,7 +16,7 @@ package dragontoothmg
 // The board type, which uses little-endian rank-file mapping.
 type Board struct {
 	Wtomove       bool
-	enpassant     uint8 // square id (16-23 or 40-47) where en passant capture is possible
+	Enpassant     uint8 // square id (16-23 or 40-47) where en passant capture is possible
 	castlerights  uint8
 	Halfmoveclock uint8
 	Fullmoveno    uint16

@@ -87,7 +87,7 @@ func (b *Board) Apply(m Move) {
 	}
 
 	// Is this an e.p. capture? Strip the opponent pawn and reset the e.p. square
-	oldEpCaptureSquare := b.enpassant
+	oldEpCaptureSquare := b.Enpassant
 	if pieceType == Pawn && m.To() == oldEpCaptureSquare && oldEpCaptureSquare != 0 {
 		epOpponentPawnLocation := uint8(int8(oldEpCaptureSquare) + epDelta)
 		oppBitboardPtr.Pawns &= ^(uint64(1) << epOpponentPawnLocation)
@@ -97,9 +97,9 @@ func (b *Board) Apply(m Move) {
 	}
 	// Update the en passant square
 	if pieceType == Pawn && (int8(m.To())+2*epDelta == int8(m.From())) { // pawn double push
-		b.enpassant = uint8(int8(m.To()) + epDelta)
+		b.Enpassant = uint8(int8(m.To()) + epDelta)
 	} else {
-		b.enpassant = 0
+		b.Enpassant = 0
 	}
 
 	// Is this a promotion?
@@ -151,7 +151,7 @@ func (b *Board) Apply(m Move) {
 
 	// remove the old en passant square from the hash, and add the new one
 	b.hash ^= uint64(oldEpCaptureSquare)
-	b.hash ^= uint64(b.enpassant)
+	b.hash ^= uint64(b.Enpassant)
 }
 
 func determinePieceType(ourBitboardPtr *Bitboards, squareMask uint64) (Piece, *uint64) {

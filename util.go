@@ -25,7 +25,7 @@ func recomputeBoardHash(b *Board) uint64 {
 	if b.blackCanCastleQueenside() {
 		hash ^= castleRightsZobristC[3]
 	}
-	hash ^= uint64(b.enpassant)
+	hash ^= uint64(b.Enpassant)
 	for i := uint8(0); i < 64; i++ {
 		whitePiece, _ := determinePieceType(&(b.White), uint64(1)<<i)
 		blackPiece, _ := determinePieceType(&(b.Black), uint64(1)<<i)
@@ -47,7 +47,7 @@ func IsCapture(m Move, b *Board) bool {
 	// Is it an en passant capture?
 	fromBitboard := (uint64(1) << m.From())
 	originIsPawn := fromBitboard&b.White.Pawns != 0 || fromBitboard&b.Black.Pawns != 0
-	return originIsPawn && (toBitboard&(uint64(1)<<b.enpassant) != 0)
+	return originIsPawn && (toBitboard&(uint64(1)<<b.Enpassant) != 0)
 }
 
 func GetPieceType(square uint8, b *Board) (int, bool) {
@@ -272,8 +272,8 @@ func (b *Board) ToFen() string {
 		position += "-"
 	}
 	position += " "
-	if b.enpassant != 0 {
-		position += IndexToAlgebraic(Square(b.enpassant))
+	if b.Enpassant != 0 {
+		position += IndexToAlgebraic(Square(b.Enpassant))
 	} else {
 		position += "-"
 	}
@@ -355,7 +355,7 @@ func ParseFen(fen string) Board {
 			var b2 Board
 			return b2 // TODO(dylhunn): return error instead of blank board
 		}
-		b.enpassant = res
+		b.Enpassant = res
 	}
 
 	if len(tokens) > 4 {

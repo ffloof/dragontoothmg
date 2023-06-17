@@ -30,7 +30,7 @@ func (b *Board) GenerateControlArea() *ThreatBitboards {
 	}
 }
 
-// Pawn captures (non enpassant) - all squares
+// Pawn captures (non Enpassant) - all squares
 func (b *Board) pawnControls(nonpinned uint64) uint64 {
 	var area uint64
 	east, west := b.pawnControlsBitboards(nonpinned)

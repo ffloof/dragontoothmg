@@ -297,8 +297,8 @@ func (b *Board) pawnPushBitboards(nonpinned uint64) (targets uint64, doubleTarge
 // Only pieces marked nonpinned can be moved. Only squares in allowDest can be moved to.
 func (b *Board) pawnCaptures(moveList *[]Move, nonpinned uint64, allowDest uint64) {
 	east, west := b.pawnCaptureBitboards(nonpinned)
-	if b.enpassant > 0 { // always allow us to try en-passant captures
-		allowDest = allowDest | 1<<b.enpassant
+	if b.Enpassant > 0 { // always allow us to try en-passant captures
+		allowDest = allowDest | 1<<b.Enpassant
 	}
 	east, west = east&allowDest, west&allowDest
 	dirbitboards := [2]uint64{east, west}
@@ -319,17 +319,17 @@ func (b *Board) pawnCaptures(moveList *[]Move, nonpinned uint64, allowDest uint6
 				move.Setfrom(Square(target + (9 - (dir * 2))))
 				canPromote = target <= 7
 			}
-			if uint8(target) == b.enpassant && b.enpassant != 0 {
+			if uint8(target) == b.Enpassant && b.Enpassant != 0 {
 				// Apply, check actual legality, then unapply
 				// Warning: not thread safe
 				var ourPieces, oppPieces *Bitboards
-				var enpassantEnemy uint8
+				var EnpassantEnemy uint8
 				if b.Wtomove {
-					enpassantEnemy = uint8(move.To()) - 8
+					EnpassantEnemy = uint8(move.To()) - 8
 					ourPieces = &(b.White)
 					oppPieces = &(b.Black)
 				} else {
-					enpassantEnemy = uint8(move.To()) + 8
+					EnpassantEnemy = uint8(move.To()) + 8
 					ourPieces = &(b.Black)
 					oppPieces = &(b.White)
 				}
@@ -337,15 +337,15 @@ func (b *Board) pawnCaptures(moveList *[]Move, nonpinned uint64, allowDest uint6
 				ourPieces.All &= ^(uint64(1) << move.From())
 				ourPieces.Pawns |= (uint64(1) << move.To())
 				ourPieces.All |= (uint64(1) << move.To())
-				oppPieces.Pawns &= ^(uint64(1) << enpassantEnemy)
-				oppPieces.All &= ^(uint64(1) << enpassantEnemy)
+				oppPieces.Pawns &= ^(uint64(1) << EnpassantEnemy)
+				oppPieces.All &= ^(uint64(1) << EnpassantEnemy)
 				kingInCheck := b.OurKingInCheck()
 				ourPieces.Pawns |= (uint64(1) << move.From())
 				ourPieces.All |= (uint64(1) << move.From())
 				ourPieces.Pawns &= ^(uint64(1) << move.To())
 				ourPieces.All &= ^(uint64(1) << move.To())
-				oppPieces.Pawns |= (uint64(1) << enpassantEnemy)
-				oppPieces.All |= (uint64(1) << enpassantEnemy)
+				oppPieces.Pawns |= (uint64(1) << EnpassantEnemy)
+				oppPieces.All |= (uint64(1) << EnpassantEnemy)
 				if kingInCheck {
 					continue
 				}
@@ -367,8 +367,8 @@ func (b *Board) pawnCaptureBitboards(nonpinned uint64) (east uint64, west uint64
 	var targets uint64
 	// TODO(dylhunn): Always try the en passant capture and verify check status, regardless of
 	// valid square requirements
-	if b.enpassant > 0 { // an en-passant target is active
-		targets = (1 << b.enpassant)
+	if b.Enpassant > 0 { // an en-passant target is active
+		targets = (1 << b.Enpassant)
 	}
 	if b.Wtomove {
 		targets |= b.Black.All
