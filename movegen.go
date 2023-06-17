@@ -691,3 +691,7 @@ func CalculateBishopMoveBitboard(currBishop uint8, allPieces uint64) uint64 {
 	targets := magicMovesBishop[currBishop][dbindex]
 	return targets
 }
+
+func CalculateKnightMoveBitboard(currKnight uint8) uint64 {
+	return knightMasks[int(currKnight)]
+}
