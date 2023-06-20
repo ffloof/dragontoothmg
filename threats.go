@@ -249,3 +249,14 @@ func (b *Board) pawnControlsBitboards(nonpinned uint64) (east uint64, west uint6
 	}
 	return
 }
+
+func (b *Board) MakeNullMove() {
+	// Switch side to move and update hash
+	b.hash ^= whiteToMoveZobristC
+	b.Wtomove = !b.Wtomove
+
+	// Update enpassant hash
+	b.hash ^= uint64(b.Enpassant)
+	b.hash ^= uint64(0)
+	b.Enpassant = 0
+}
